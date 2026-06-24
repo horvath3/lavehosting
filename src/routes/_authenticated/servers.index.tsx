@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { StatusBadge } from "./dashboard";
 
-export const Route = createFileRoute("/_authenticated/servers")({
+export const Route = createFileRoute("/_authenticated/servers/")({
   component: ServersPage,
 });
 

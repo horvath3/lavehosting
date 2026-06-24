@@ -10,11 +10,26 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ServicesRouteImport } from './routes/services'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedServersIndexRouteImport } from './routes/_authenticated/servers.index'
+import { Route as AuthenticatedServersIdRouteImport } from './routes/_authenticated/servers.$id'
+import { Route as AuthenticatedServersIdIndexRouteImport } from './routes/_authenticated/servers.$id.index'
 
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -22,30 +37,85 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedServersIndexRoute =
+  AuthenticatedServersIndexRouteImport.update({
+    id: '/servers/',
+    path: '/servers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedServersIdRoute = AuthenticatedServersIdRouteImport.update({
+  id: '/servers/$id',
+  path: '/servers/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedServersIdIndexRoute =
+  AuthenticatedServersIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedServersIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/services': typeof ServicesRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/servers/$id': typeof AuthenticatedServersIdRouteWithChildren
+  '/servers/': typeof AuthenticatedServersIndexRoute
+  '/servers/$id/': typeof AuthenticatedServersIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
   '/services': typeof ServicesRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/servers': typeof AuthenticatedServersIndexRoute
+  '/servers/$id': typeof AuthenticatedServersIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
   '/services': typeof ServicesRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/servers/$id': typeof AuthenticatedServersIdRouteWithChildren
+  '/_authenticated/servers/': typeof AuthenticatedServersIndexRoute
+  '/_authenticated/servers/$id/': typeof AuthenticatedServersIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/services'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/services'
+    | '/dashboard'
+    | '/servers/$id'
+    | '/servers/'
+    | '/servers/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/services'
-  id: '__root__' | '/' | '/services'
+  to: '/' | '/auth' | '/services' | '/dashboard' | '/servers' | '/servers/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/services'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/servers/$id'
+    | '/_authenticated/servers/'
+    | '/_authenticated/servers/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
   ServicesRoute: typeof ServicesRoute
 }
 
@@ -58,6 +128,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -65,11 +149,70 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/servers/': {
+      id: '/_authenticated/servers/'
+      path: '/servers'
+      fullPath: '/servers/'
+      preLoaderRoute: typeof AuthenticatedServersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/servers/$id': {
+      id: '/_authenticated/servers/$id'
+      path: '/servers/$id'
+      fullPath: '/servers/$id'
+      preLoaderRoute: typeof AuthenticatedServersIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/servers/$id/': {
+      id: '/_authenticated/servers/$id/'
+      path: '/'
+      fullPath: '/servers/$id/'
+      preLoaderRoute: typeof AuthenticatedServersIdIndexRouteImport
+      parentRoute: typeof AuthenticatedServersIdRoute
+    }
   }
 }
 
+interface AuthenticatedServersIdRouteChildren {
+  AuthenticatedServersIdIndexRoute: typeof AuthenticatedServersIdIndexRoute
+}
+
+const AuthenticatedServersIdRouteChildren: AuthenticatedServersIdRouteChildren =
+  {
+    AuthenticatedServersIdIndexRoute: AuthenticatedServersIdIndexRoute,
+  }
+
+const AuthenticatedServersIdRouteWithChildren =
+  AuthenticatedServersIdRoute._addFileChildren(
+    AuthenticatedServersIdRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedServersIdRoute: typeof AuthenticatedServersIdRouteWithChildren
+  AuthenticatedServersIndexRoute: typeof AuthenticatedServersIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedServersIdRoute: AuthenticatedServersIdRouteWithChildren,
+  AuthenticatedServersIndexRoute: AuthenticatedServersIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
   ServicesRoute: ServicesRoute,
 }
 export const routeTree = rootRouteImport
