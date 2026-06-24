@@ -20,6 +20,10 @@ import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedServersIndexRouteImport } from './routes/_authenticated/servers.index'
 import { Route as AuthenticatedServersIdRouteImport } from './routes/_authenticated/servers.$id'
 import { Route as AuthenticatedServersIdIndexRouteImport } from './routes/_authenticated/servers.$id.index'
+import { Route as ApiPublicRunnerPollRouteImport } from './routes/api/public/runner/poll'
+import { Route as ApiPublicRunnerMetricsRouteImport } from './routes/api/public/runner/metrics'
+import { Route as ApiPublicRunnerLogsRouteImport } from './routes/api/public/runner/logs'
+import { Route as ApiPublicRunnerAckRouteImport } from './routes/api/public/runner/ack'
 import { Route as AuthenticatedServersIdSettingsRouteImport } from './routes/_authenticated/servers.$id.settings'
 import { Route as AuthenticatedServersIdFilesRouteImport } from './routes/_authenticated/servers.$id.files'
 import { Route as AuthenticatedServersIdEditRouteImport } from './routes/_authenticated/servers.$id.edit'
@@ -81,6 +85,26 @@ const AuthenticatedServersIdIndexRoute =
     path: '/',
     getParentRoute: () => AuthenticatedServersIdRoute,
   } as any)
+const ApiPublicRunnerPollRoute = ApiPublicRunnerPollRouteImport.update({
+  id: '/api/public/runner/poll',
+  path: '/api/public/runner/poll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRunnerMetricsRoute = ApiPublicRunnerMetricsRouteImport.update({
+  id: '/api/public/runner/metrics',
+  path: '/api/public/runner/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRunnerLogsRoute = ApiPublicRunnerLogsRouteImport.update({
+  id: '/api/public/runner/logs',
+  path: '/api/public/runner/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRunnerAckRoute = ApiPublicRunnerAckRouteImport.update({
+  id: '/api/public/runner/ack',
+  path: '/api/public/runner/ack',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedServersIdSettingsRoute =
   AuthenticatedServersIdSettingsRouteImport.update({
     id: '/settings',
@@ -120,6 +144,10 @@ export interface FileRoutesByFullPath {
   '/servers/$id/edit': typeof AuthenticatedServersIdEditRoute
   '/servers/$id/files': typeof AuthenticatedServersIdFilesRoute
   '/servers/$id/settings': typeof AuthenticatedServersIdSettingsRoute
+  '/api/public/runner/ack': typeof ApiPublicRunnerAckRoute
+  '/api/public/runner/logs': typeof ApiPublicRunnerLogsRoute
+  '/api/public/runner/metrics': typeof ApiPublicRunnerMetricsRoute
+  '/api/public/runner/poll': typeof ApiPublicRunnerPollRoute
   '/servers/$id/': typeof AuthenticatedServersIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -135,6 +163,10 @@ export interface FileRoutesByTo {
   '/servers/$id/edit': typeof AuthenticatedServersIdEditRoute
   '/servers/$id/files': typeof AuthenticatedServersIdFilesRoute
   '/servers/$id/settings': typeof AuthenticatedServersIdSettingsRoute
+  '/api/public/runner/ack': typeof ApiPublicRunnerAckRoute
+  '/api/public/runner/logs': typeof ApiPublicRunnerLogsRoute
+  '/api/public/runner/metrics': typeof ApiPublicRunnerMetricsRoute
+  '/api/public/runner/poll': typeof ApiPublicRunnerPollRoute
   '/servers/$id': typeof AuthenticatedServersIdIndexRoute
 }
 export interface FileRoutesById {
@@ -153,6 +185,10 @@ export interface FileRoutesById {
   '/_authenticated/servers/$id/edit': typeof AuthenticatedServersIdEditRoute
   '/_authenticated/servers/$id/files': typeof AuthenticatedServersIdFilesRoute
   '/_authenticated/servers/$id/settings': typeof AuthenticatedServersIdSettingsRoute
+  '/api/public/runner/ack': typeof ApiPublicRunnerAckRoute
+  '/api/public/runner/logs': typeof ApiPublicRunnerLogsRoute
+  '/api/public/runner/metrics': typeof ApiPublicRunnerMetricsRoute
+  '/api/public/runner/poll': typeof ApiPublicRunnerPollRoute
   '/_authenticated/servers/$id/': typeof AuthenticatedServersIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -171,6 +207,10 @@ export interface FileRouteTypes {
     | '/servers/$id/edit'
     | '/servers/$id/files'
     | '/servers/$id/settings'
+    | '/api/public/runner/ack'
+    | '/api/public/runner/logs'
+    | '/api/public/runner/metrics'
+    | '/api/public/runner/poll'
     | '/servers/$id/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -186,6 +226,10 @@ export interface FileRouteTypes {
     | '/servers/$id/edit'
     | '/servers/$id/files'
     | '/servers/$id/settings'
+    | '/api/public/runner/ack'
+    | '/api/public/runner/logs'
+    | '/api/public/runner/metrics'
+    | '/api/public/runner/poll'
     | '/servers/$id'
   id:
     | '__root__'
@@ -203,6 +247,10 @@ export interface FileRouteTypes {
     | '/_authenticated/servers/$id/edit'
     | '/_authenticated/servers/$id/files'
     | '/_authenticated/servers/$id/settings'
+    | '/api/public/runner/ack'
+    | '/api/public/runner/logs'
+    | '/api/public/runner/metrics'
+    | '/api/public/runner/poll'
     | '/_authenticated/servers/$id/'
   fileRoutesById: FileRoutesById
 }
@@ -211,6 +259,10 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ServicesRoute: typeof ServicesRoute
+  ApiPublicRunnerAckRoute: typeof ApiPublicRunnerAckRoute
+  ApiPublicRunnerLogsRoute: typeof ApiPublicRunnerLogsRoute
+  ApiPublicRunnerMetricsRoute: typeof ApiPublicRunnerMetricsRoute
+  ApiPublicRunnerPollRoute: typeof ApiPublicRunnerPollRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -292,6 +344,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedServersIdIndexRouteImport
       parentRoute: typeof AuthenticatedServersIdRoute
     }
+    '/api/public/runner/poll': {
+      id: '/api/public/runner/poll'
+      path: '/api/public/runner/poll'
+      fullPath: '/api/public/runner/poll'
+      preLoaderRoute: typeof ApiPublicRunnerPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runner/metrics': {
+      id: '/api/public/runner/metrics'
+      path: '/api/public/runner/metrics'
+      fullPath: '/api/public/runner/metrics'
+      preLoaderRoute: typeof ApiPublicRunnerMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runner/logs': {
+      id: '/api/public/runner/logs'
+      path: '/api/public/runner/logs'
+      fullPath: '/api/public/runner/logs'
+      preLoaderRoute: typeof ApiPublicRunnerLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runner/ack': {
+      id: '/api/public/runner/ack'
+      path: '/api/public/runner/ack'
+      fullPath: '/api/public/runner/ack'
+      preLoaderRoute: typeof ApiPublicRunnerAckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/servers/$id/settings': {
       id: '/_authenticated/servers/$id/settings'
       path: '/settings'
@@ -371,6 +451,10 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ServicesRoute: ServicesRoute,
+  ApiPublicRunnerAckRoute: ApiPublicRunnerAckRoute,
+  ApiPublicRunnerLogsRoute: ApiPublicRunnerLogsRoute,
+  ApiPublicRunnerMetricsRoute: ApiPublicRunnerMetricsRoute,
+  ApiPublicRunnerPollRoute: ApiPublicRunnerPollRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

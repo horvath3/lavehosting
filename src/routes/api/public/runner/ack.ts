@@ -37,7 +37,7 @@ export const Route = createFileRoute("/api/public/runner/ack")({
           if (body.server_status) patch.status = body.server_status;
           if (body.container_id) patch.container_id = body.container_id;
           if (body.server_status === "running") patch.started_at = new Date().toISOString();
-          await supabaseAdmin.from("servers").update(patch).eq("id", body.server_id);
+          await supabaseAdmin.from("servers").update(patch as any).eq("id", body.server_id);
         }
         return Response.json({ ok: true });
       },
