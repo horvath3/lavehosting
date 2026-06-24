@@ -1,0 +1,10 @@
+{
+  "name": "lave-runner",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "dockerode": "^4.0.0"
+  }
+}

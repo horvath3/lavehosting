@@ -9,38 +9,285 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ServicesRouteImport } from './routes/services'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
+import { Route as AuthenticatedServersIndexRouteImport } from './routes/_authenticated/servers.index'
+import { Route as AuthenticatedServersIdRouteImport } from './routes/_authenticated/servers.$id'
+import { Route as AuthenticatedServersIdIndexRouteImport } from './routes/_authenticated/servers.$id.index'
+import { Route as ApiPublicRunnerPollRouteImport } from './routes/api/public/runner/poll'
+import { Route as ApiPublicRunnerMetricsRouteImport } from './routes/api/public/runner/metrics'
+import { Route as ApiPublicRunnerLogsRouteImport } from './routes/api/public/runner/logs'
+import { Route as ApiPublicRunnerAckRouteImport } from './routes/api/public/runner/ack'
+import { Route as AuthenticatedServersIdSettingsRouteImport } from './routes/_authenticated/servers.$id.settings'
+import { Route as AuthenticatedServersIdFilesRouteImport } from './routes/_authenticated/servers.$id.files'
+import { Route as AuthenticatedServersIdEditRouteImport } from './routes/_authenticated/servers.$id.edit'
+import { Route as AuthenticatedServersIdConsoleRouteImport } from './routes/_authenticated/servers.$id.console'
 
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
+  id: '/account',
+  path: '/account',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedServersIndexRoute =
+  AuthenticatedServersIndexRouteImport.update({
+    id: '/servers/',
+    path: '/servers/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedServersIdRoute = AuthenticatedServersIdRouteImport.update({
+  id: '/servers/$id',
+  path: '/servers/$id',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedServersIdIndexRoute =
+  AuthenticatedServersIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedServersIdRoute,
+  } as any)
+const ApiPublicRunnerPollRoute = ApiPublicRunnerPollRouteImport.update({
+  id: '/api/public/runner/poll',
+  path: '/api/public/runner/poll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRunnerMetricsRoute = ApiPublicRunnerMetricsRouteImport.update({
+  id: '/api/public/runner/metrics',
+  path: '/api/public/runner/metrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRunnerLogsRoute = ApiPublicRunnerLogsRouteImport.update({
+  id: '/api/public/runner/logs',
+  path: '/api/public/runner/logs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicRunnerAckRoute = ApiPublicRunnerAckRouteImport.update({
+  id: '/api/public/runner/ack',
+  path: '/api/public/runner/ack',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedServersIdSettingsRoute =
+  AuthenticatedServersIdSettingsRouteImport.update({
+    id: '/settings',
+    path: '/settings',
+    getParentRoute: () => AuthenticatedServersIdRoute,
+  } as any)
+const AuthenticatedServersIdFilesRoute =
+  AuthenticatedServersIdFilesRouteImport.update({
+    id: '/files',
+    path: '/files',
+    getParentRoute: () => AuthenticatedServersIdRoute,
+  } as any)
+const AuthenticatedServersIdEditRoute =
+  AuthenticatedServersIdEditRouteImport.update({
+    id: '/edit',
+    path: '/edit',
+    getParentRoute: () => AuthenticatedServersIdRoute,
+  } as any)
+const AuthenticatedServersIdConsoleRoute =
+  AuthenticatedServersIdConsoleRouteImport.update({
+    id: '/console',
+    path: '/console',
+    getParentRoute: () => AuthenticatedServersIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/services': typeof ServicesRoute
+  '/account': typeof AuthenticatedAccountRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/servers/$id': typeof AuthenticatedServersIdRouteWithChildren
+  '/servers/': typeof AuthenticatedServersIndexRoute
+  '/servers/$id/console': typeof AuthenticatedServersIdConsoleRoute
+  '/servers/$id/edit': typeof AuthenticatedServersIdEditRoute
+  '/servers/$id/files': typeof AuthenticatedServersIdFilesRoute
+  '/servers/$id/settings': typeof AuthenticatedServersIdSettingsRoute
+  '/api/public/runner/ack': typeof ApiPublicRunnerAckRoute
+  '/api/public/runner/logs': typeof ApiPublicRunnerLogsRoute
+  '/api/public/runner/metrics': typeof ApiPublicRunnerMetricsRoute
+  '/api/public/runner/poll': typeof ApiPublicRunnerPollRoute
+  '/servers/$id/': typeof AuthenticatedServersIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/services': typeof ServicesRoute
+  '/account': typeof AuthenticatedAccountRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/servers': typeof AuthenticatedServersIndexRoute
+  '/servers/$id/console': typeof AuthenticatedServersIdConsoleRoute
+  '/servers/$id/edit': typeof AuthenticatedServersIdEditRoute
+  '/servers/$id/files': typeof AuthenticatedServersIdFilesRoute
+  '/servers/$id/settings': typeof AuthenticatedServersIdSettingsRoute
+  '/api/public/runner/ack': typeof ApiPublicRunnerAckRoute
+  '/api/public/runner/logs': typeof ApiPublicRunnerLogsRoute
+  '/api/public/runner/metrics': typeof ApiPublicRunnerMetricsRoute
+  '/api/public/runner/poll': typeof ApiPublicRunnerPollRoute
+  '/servers/$id': typeof AuthenticatedServersIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/services': typeof ServicesRoute
+  '/_authenticated/account': typeof AuthenticatedAccountRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/servers/$id': typeof AuthenticatedServersIdRouteWithChildren
+  '/_authenticated/servers/': typeof AuthenticatedServersIndexRoute
+  '/_authenticated/servers/$id/console': typeof AuthenticatedServersIdConsoleRoute
+  '/_authenticated/servers/$id/edit': typeof AuthenticatedServersIdEditRoute
+  '/_authenticated/servers/$id/files': typeof AuthenticatedServersIdFilesRoute
+  '/_authenticated/servers/$id/settings': typeof AuthenticatedServersIdSettingsRoute
+  '/api/public/runner/ack': typeof ApiPublicRunnerAckRoute
+  '/api/public/runner/logs': typeof ApiPublicRunnerLogsRoute
+  '/api/public/runner/metrics': typeof ApiPublicRunnerMetricsRoute
+  '/api/public/runner/poll': typeof ApiPublicRunnerPollRoute
+  '/_authenticated/servers/$id/': typeof AuthenticatedServersIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/services'
+    | '/account'
+    | '/admin'
+    | '/dashboard'
+    | '/settings'
+    | '/servers/$id'
+    | '/servers/'
+    | '/servers/$id/console'
+    | '/servers/$id/edit'
+    | '/servers/$id/files'
+    | '/servers/$id/settings'
+    | '/api/public/runner/ack'
+    | '/api/public/runner/logs'
+    | '/api/public/runner/metrics'
+    | '/api/public/runner/poll'
+    | '/servers/$id/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/services'
+    | '/account'
+    | '/admin'
+    | '/dashboard'
+    | '/settings'
+    | '/servers'
+    | '/servers/$id/console'
+    | '/servers/$id/edit'
+    | '/servers/$id/files'
+    | '/servers/$id/settings'
+    | '/api/public/runner/ack'
+    | '/api/public/runner/logs'
+    | '/api/public/runner/metrics'
+    | '/api/public/runner/poll'
+    | '/servers/$id'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/services'
+    | '/_authenticated/account'
+    | '/_authenticated/admin'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/settings'
+    | '/_authenticated/servers/$id'
+    | '/_authenticated/servers/'
+    | '/_authenticated/servers/$id/console'
+    | '/_authenticated/servers/$id/edit'
+    | '/_authenticated/servers/$id/files'
+    | '/_authenticated/servers/$id/settings'
+    | '/api/public/runner/ack'
+    | '/api/public/runner/logs'
+    | '/api/public/runner/metrics'
+    | '/api/public/runner/poll'
+    | '/_authenticated/servers/$id/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
+  ServicesRoute: typeof ServicesRoute
+  ApiPublicRunnerAckRoute: typeof ApiPublicRunnerAckRoute
+  ApiPublicRunnerLogsRoute: typeof ApiPublicRunnerLogsRoute
+  ApiPublicRunnerMetricsRoute: typeof ApiPublicRunnerMetricsRoute
+  ApiPublicRunnerPollRoute: typeof ApiPublicRunnerPollRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +295,167 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/account': {
+      id: '/_authenticated/account'
+      path: '/account'
+      fullPath: '/account'
+      preLoaderRoute: typeof AuthenticatedAccountRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/servers/': {
+      id: '/_authenticated/servers/'
+      path: '/servers'
+      fullPath: '/servers/'
+      preLoaderRoute: typeof AuthenticatedServersIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/servers/$id': {
+      id: '/_authenticated/servers/$id'
+      path: '/servers/$id'
+      fullPath: '/servers/$id'
+      preLoaderRoute: typeof AuthenticatedServersIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/servers/$id/': {
+      id: '/_authenticated/servers/$id/'
+      path: '/'
+      fullPath: '/servers/$id/'
+      preLoaderRoute: typeof AuthenticatedServersIdIndexRouteImport
+      parentRoute: typeof AuthenticatedServersIdRoute
+    }
+    '/api/public/runner/poll': {
+      id: '/api/public/runner/poll'
+      path: '/api/public/runner/poll'
+      fullPath: '/api/public/runner/poll'
+      preLoaderRoute: typeof ApiPublicRunnerPollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runner/metrics': {
+      id: '/api/public/runner/metrics'
+      path: '/api/public/runner/metrics'
+      fullPath: '/api/public/runner/metrics'
+      preLoaderRoute: typeof ApiPublicRunnerMetricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runner/logs': {
+      id: '/api/public/runner/logs'
+      path: '/api/public/runner/logs'
+      fullPath: '/api/public/runner/logs'
+      preLoaderRoute: typeof ApiPublicRunnerLogsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/runner/ack': {
+      id: '/api/public/runner/ack'
+      path: '/api/public/runner/ack'
+      fullPath: '/api/public/runner/ack'
+      preLoaderRoute: typeof ApiPublicRunnerAckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/servers/$id/settings': {
+      id: '/_authenticated/servers/$id/settings'
+      path: '/settings'
+      fullPath: '/servers/$id/settings'
+      preLoaderRoute: typeof AuthenticatedServersIdSettingsRouteImport
+      parentRoute: typeof AuthenticatedServersIdRoute
+    }
+    '/_authenticated/servers/$id/files': {
+      id: '/_authenticated/servers/$id/files'
+      path: '/files'
+      fullPath: '/servers/$id/files'
+      preLoaderRoute: typeof AuthenticatedServersIdFilesRouteImport
+      parentRoute: typeof AuthenticatedServersIdRoute
+    }
+    '/_authenticated/servers/$id/edit': {
+      id: '/_authenticated/servers/$id/edit'
+      path: '/edit'
+      fullPath: '/servers/$id/edit'
+      preLoaderRoute: typeof AuthenticatedServersIdEditRouteImport
+      parentRoute: typeof AuthenticatedServersIdRoute
+    }
+    '/_authenticated/servers/$id/console': {
+      id: '/_authenticated/servers/$id/console'
+      path: '/console'
+      fullPath: '/servers/$id/console'
+      preLoaderRoute: typeof AuthenticatedServersIdConsoleRouteImport
+      parentRoute: typeof AuthenticatedServersIdRoute
+    }
   }
 }
 
+interface AuthenticatedServersIdRouteChildren {
+  AuthenticatedServersIdConsoleRoute: typeof AuthenticatedServersIdConsoleRoute
+  AuthenticatedServersIdEditRoute: typeof AuthenticatedServersIdEditRoute
+  AuthenticatedServersIdFilesRoute: typeof AuthenticatedServersIdFilesRoute
+  AuthenticatedServersIdSettingsRoute: typeof AuthenticatedServersIdSettingsRoute
+  AuthenticatedServersIdIndexRoute: typeof AuthenticatedServersIdIndexRoute
+}
+
+const AuthenticatedServersIdRouteChildren: AuthenticatedServersIdRouteChildren =
+  {
+    AuthenticatedServersIdConsoleRoute: AuthenticatedServersIdConsoleRoute,
+    AuthenticatedServersIdEditRoute: AuthenticatedServersIdEditRoute,
+    AuthenticatedServersIdFilesRoute: AuthenticatedServersIdFilesRoute,
+    AuthenticatedServersIdSettingsRoute: AuthenticatedServersIdSettingsRoute,
+    AuthenticatedServersIdIndexRoute: AuthenticatedServersIdIndexRoute,
+  }
+
+const AuthenticatedServersIdRouteWithChildren =
+  AuthenticatedServersIdRoute._addFileChildren(
+    AuthenticatedServersIdRouteChildren,
+  )
+
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedServersIdRoute: typeof AuthenticatedServersIdRouteWithChildren
+  AuthenticatedServersIndexRoute: typeof AuthenticatedServersIndexRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAccountRoute: AuthenticatedAccountRoute,
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedServersIdRoute: AuthenticatedServersIdRouteWithChildren,
+  AuthenticatedServersIndexRoute: AuthenticatedServersIndexRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
+  ServicesRoute: ServicesRoute,
+  ApiPublicRunnerAckRoute: ApiPublicRunnerAckRoute,
+  ApiPublicRunnerLogsRoute: ApiPublicRunnerLogsRoute,
+  ApiPublicRunnerMetricsRoute: ApiPublicRunnerMetricsRoute,
+  ApiPublicRunnerPollRoute: ApiPublicRunnerPollRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
