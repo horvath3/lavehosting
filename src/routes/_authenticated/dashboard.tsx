@@ -1,10 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { motion } from "framer-motion";
-import { Server, Plus, Activity, Cpu, MemoryStick, ArrowUpRight } from "lucide-react";
+import { Server, Plus, Activity, Cpu, MemoryStick, ArrowUpRight, type LucideIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { listServers } from "@/lib/servers.functions";
+import { useEffect, useState } from "react";
+import { getDashboard } from "@/lib/dashboard.functions";
 import { getMe } from "@/lib/account.functions";
+import { toAppServer } from "@/lib/runner/adapters";
+import { getRunnerSocket } from "@/lib/runner/socket";
+import type { DashboardSnapshot } from "@/lib/runner/types";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -13,12 +17,33 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 
 function Dashboard() {
   const meFn = useServerFn(getMe);
-  const listFn = useServerFn(listServers);
+  const dashboardFn = useServerFn(getDashboard);
   const me = useQuery({ queryKey: ["me"], queryFn: meFn });
-  const servers = useQuery({ queryKey: ["servers"], queryFn: listFn });
+  const dashboard = useQuery({ queryKey: ["dashboard"], queryFn: dashboardFn, refetchInterval: 5000 });
+  const [liveDashboard, setLiveDashboard] = useState<typeof dashboard.data | null>(null);
 
-  const total = servers.data?.length ?? 0;
-  const running = servers.data?.filter((s) => s.status === "running").length ?? 0;
+  useEffect(() => {
+    const socket = getRunnerSocket();
+    const onDashboardUpdate = (snapshot: DashboardSnapshot) => {
+      setLiveDashboard({
+        ...snapshot,
+        servers: snapshot.servers.map(toAppServer)
+      });
+    };
+
+    socket.emit("dashboard:subscribe");
+    socket.on("dashboard:update", onDashboardUpdate);
+
+    return () => {
+      socket.emit("dashboard:unsubscribe");
+      socket.off("dashboard:update", onDashboardUpdate);
+    };
+  }, []);
+
+  const dashboardData = liveDashboard ?? dashboard.data;
+  const servers = dashboardData?.servers ?? [];
+  const total = servers.length;
+  const running = servers.filter((s) => s.status === "running").length;
   const stopped = total - running;
 
   return (
@@ -45,13 +70,13 @@ function Dashboard() {
           <h2 className="font-display text-lg font-semibold">Your servers</h2>
           <Link to="/servers" className="text-sm text-muted-foreground hover:text-foreground inline-flex items-center gap-1">View all <ArrowUpRight className="h-3.5 w-3.5" /></Link>
         </div>
-        {servers.isLoading ? (
-          <div className="py-10 text-center text-sm text-muted-foreground">Loading…</div>
-        ) : !servers.data?.length ? (
+        {dashboard.isLoading ? (
+          <div className="py-10 text-center text-sm text-muted-foreground">Loading...</div>
+        ) : !servers.length ? (
           <EmptyServers />
         ) : (
           <div className="space-y-2">
-            {servers.data.slice(0, 5).map((s) => (
+            {servers.slice(0, 5).map((s) => (
               <Link key={s.id} to="/servers/$id" params={{ id: s.id }} className="flex items-center justify-between rounded-xl border border-white/5 p-3 transition-colors hover:bg-white/5">
                 <div className="flex items-center gap-3">
                   <div className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-[oklch(0.66_0.22_296/0.25)] to-[oklch(0.62_0.20_258/0.25)]"><Server className="h-4 w-4" /></div>
@@ -70,7 +95,7 @@ function Dashboard() {
   );
 }
 
-function StatCard({ icon: Icon, label, value, accent }: { icon: any; label: string; value: number | string; accent?: "success" }) {
+function StatCard({ icon: Icon, label, value, accent }: { icon: LucideIcon; label: string; value: number | string; accent?: "success" }) {
   return (
     <motion.div whileHover={{ y: -2 }} className="glass rounded-2xl p-5">
       <div className="flex items-center justify-between text-xs uppercase tracking-wider text-muted-foreground"><span>{label}</span><Icon className="h-4 w-4" /></div>

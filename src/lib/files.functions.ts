@@ -1,201 +1,153 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { runnerJsonRequest, runnerRequest } from "@/lib/runner/client.server";
+import { toAppFileEntry } from "@/lib/runner/adapters";
+import type { AppFileEntry, RunnerFileContent, RunnerFileEntry } from "@/lib/runner/types";
 
-const ALLOWED_EXT = new Set(["js", "ts", "py", "json", "txt", "env", "yml", "yaml", "md", "mjs", "cjs"]);
-const MAX_FILE_BYTES = 2 * 1024 * 1024; // 2 MB per file
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
-function normalizePath(p: string): string {
-  // Strip leading slashes; collapse repeated slashes; reject "..".
-  const clean = p.replace(/^\/+/, "").replace(/\/+/g, "/");
-  if (clean.split("/").some((seg) => seg === "..")) throw new Error("Invalid path");
+function normalizePath(path: string): string {
+  const clean = path.replace(/^\/+/, "").replace(/\/+/g, "/");
+  if (clean.split("/").some((segment) => segment === "..")) {
+    throw new Error("Invalid path");
+  }
   return clean;
-}
-
-async function assertServerAccess(supabase: any, server_id: string) {
-  const { data, error } = await supabase.from("servers").select("id").eq("id", server_id).maybeSingle();
-  if (error || !data) throw new Error("Server not found");
 }
 
 export const listFiles = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ server_id: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    await assertServerAccess(supabase, data.server_id);
-    const { data: rows, error } = await supabase
-      .from("server_files")
-      .select("id, path, is_dir, size_bytes, mime, updated_at")
-      .eq("server_id", data.server_id)
-      .order("path");
-    if (error) throw new Error(error.message);
-    return rows ?? [];
+  .validator((input) => z.object({ server_id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const files = await runnerRequest<RunnerFileEntry[]>(`/api/v1/servers/${data.server_id}/files`);
+    return files.map(toAppFileEntry);
   });
 
 export const createFolder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z.object({ server_id: z.string().uuid(), path: z.string().min(1).max(400) }).parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    await assertServerAccess(supabase, data.server_id);
-    const path = normalizePath(data.path);
-    const { error } = await supabase.from("server_files").insert({
-      server_id: data.server_id, path, is_dir: true, size_bytes: 0,
+  .handler(async ({ data }) => {
+    await runnerJsonRequest(`/api/v1/servers/${data.server_id}/files/create-folder`, {
+      path: normalizePath(data.path)
     });
-    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
 export const deleteFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ server_id: z.string().uuid(), path: z.string().min(1).max(400) }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    await assertServerAccess(supabase, data.server_id);
+  .validator((input) => z.object({ server_id: z.string().uuid(), path: z.string().min(1).max(400) }).parse(input))
+  .handler(async ({ data }) => {
     const path = normalizePath(data.path);
+    const entry = await findFileEntry(data.server_id, path);
 
-    // Find direct + descendant rows
-    const { data: rows } = await supabase
-      .from("server_files")
-      .select("id, path, is_dir, storage_key")
-      .eq("server_id", data.server_id);
+    await runnerJsonRequest(`/api/v1/servers/${data.server_id}/files`, {
+      path,
+      type: entry?.is_dir ? "folder" : "file"
+    }, "DELETE");
 
-    const victims = (rows ?? []).filter((r) => r.path === path || r.path.startsWith(path + "/"));
-    if (!victims.length) return { ok: true };
-
-    const storageKeys = victims.filter((v) => !v.is_dir && v.storage_key).map((v) => v.storage_key as string);
-    if (storageKeys.length) await supabase.storage.from("server-files").remove(storageKeys);
-    await supabase.from("server_files").delete().in("id", victims.map((v) => v.id));
     return { ok: true };
   });
 
 export const renameFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z.object({
       server_id: z.string().uuid(),
       from: z.string().min(1).max(400),
       to: z.string().min(1).max(400),
     }).parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    await assertServerAccess(supabase, data.server_id);
+  .handler(async ({ data }) => {
     const from = normalizePath(data.from);
     const to = normalizePath(data.to);
     if (from === to) return { ok: true };
 
-    const { data: rows } = await supabase
-      .from("server_files")
-      .select("id, path, is_dir, storage_key")
-      .eq("server_id", data.server_id);
-
-    const affected = (rows ?? []).filter((r) => r.path === from || r.path.startsWith(from + "/"));
-    for (const row of affected) {
-      const newPath = row.path === from ? to : to + row.path.slice(from.length);
-      let newStorageKey: string | null = row.storage_key as string | null;
-      if (!row.is_dir && row.storage_key) {
-        const targetKey = `${data.server_id}/${newPath}`;
-        await supabase.storage.from("server-files").move(row.storage_key, targetKey).catch(() => {});
-        newStorageKey = targetKey;
-      }
-      await supabase.from("server_files").update({ path: newPath, storage_key: newStorageKey }).eq("id", row.id);
+    const entry = await findFileEntry(data.server_id, from);
+    const newName = to.split("/").pop();
+    if (!newName) {
+      throw new Error("Invalid target path");
     }
+
+    await runnerJsonRequest(`/api/v1/servers/${data.server_id}/files`, {
+      action: entry?.is_dir ? "rename-folder" : "rename-file",
+      path: from,
+      newName
+    }, "PUT");
+
     return { ok: true };
   });
 
 export const getFileContent = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ server_id: z.string().uuid(), path: z.string().min(1).max(400) }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    await assertServerAccess(supabase, data.server_id);
-    const path = normalizePath(data.path);
-    const key = `${data.server_id}/${path}`;
-    const { data: blob, error } = await supabase.storage.from("server-files").download(key);
-    if (error || !blob) return { content: "" };
-    const text = await blob.text();
-    return { content: text.length > MAX_FILE_BYTES ? text.slice(0, MAX_FILE_BYTES) : text };
+  .validator((input) => z.object({ server_id: z.string().uuid(), path: z.string().min(1).max(400) }).parse(input))
+  .handler(async ({ data }) => {
+    const file = await runnerRequest<RunnerFileContent>(
+      `/api/v1/servers/${data.server_id}/files/content?path=${encodeURIComponent(normalizePath(data.path))}`,
+    );
+
+    return {
+      content: file.content.length > MAX_FILE_BYTES ? file.content.slice(0, MAX_FILE_BYTES) : file.content
+    };
   });
 
 export const saveFileContent = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z.object({
       server_id: z.string().uuid(),
       path: z.string().min(1).max(400),
       content: z.string().max(MAX_FILE_BYTES),
     }).parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    await assertServerAccess(supabase, data.server_id);
-    const path = normalizePath(data.path);
-    const ext = path.split(".").pop()?.toLowerCase() ?? "";
-    if (!ALLOWED_EXT.has(ext)) throw new Error(`File type .${ext} not allowed`);
-    const key = `${data.server_id}/${path}`;
-    const blob = new Blob([data.content], { type: "text/plain" });
+  .handler(async ({ data }) => {
+    await runnerJsonRequest(`/api/v1/servers/${data.server_id}/files`, {
+      action: "save",
+      path: normalizePath(data.path),
+      content: data.content
+    }, "PUT");
 
-    const { error: upErr } = await supabase.storage.from("server-files").upload(key, blob, { upsert: true });
-    if (upErr) throw new Error(upErr.message);
-
-    // Upsert file row
-    const { data: existing } = await supabase
-      .from("server_files").select("id").eq("server_id", data.server_id).eq("path", path).maybeSingle();
-    if (existing) {
-      await supabase.from("server_files").update({ size_bytes: data.content.length, storage_key: key, mime: "text/plain" }).eq("id", existing.id);
-    } else {
-      await supabase.from("server_files").insert({
-        server_id: data.server_id, path, is_dir: false, size_bytes: data.content.length, mime: "text/plain", storage_key: key,
-      });
-    }
     return { ok: true };
   });
 
 export const uploadFile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z.object({
       server_id: z.string().uuid(),
       path: z.string().min(1).max(400),
       content_base64: z.string().max(Math.ceil((MAX_FILE_BYTES * 4) / 3)),
     }).parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    await assertServerAccess(supabase, data.server_id);
+  .handler(async ({ data }) => {
     const path = normalizePath(data.path);
-    const ext = path.split(".").pop()?.toLowerCase() ?? "";
-    if (!ALLOWED_EXT.has(ext)) throw new Error(`File type .${ext} not allowed`);
-
-    const bytes = Uint8Array.from(atob(data.content_base64), (c) => c.charCodeAt(0));
-    if (bytes.byteLength > MAX_FILE_BYTES) throw new Error("File too large (max 2 MB)");
-    const key = `${data.server_id}/${path}`;
-    const { error } = await supabase.storage.from("server-files").upload(key, new Blob([bytes]), { upsert: true });
-    if (error) throw new Error(error.message);
-
-    const { data: existing } = await supabase
-      .from("server_files").select("id").eq("server_id", data.server_id).eq("path", path).maybeSingle();
-    if (existing) {
-      await supabase.from("server_files").update({ size_bytes: bytes.byteLength, storage_key: key, mime: "application/octet-stream" }).eq("id", existing.id);
-    } else {
-      await supabase.from("server_files").insert({
-        server_id: data.server_id, path, is_dir: false, size_bytes: bytes.byteLength, mime: "application/octet-stream", storage_key: key,
-      });
+    const content = Buffer.from(data.content_base64, "base64").toString("utf8");
+    if (Buffer.byteLength(content, "utf8") > MAX_FILE_BYTES) {
+      throw new Error("File too large (max 2 MB)");
     }
+
+    await runnerJsonRequest(`/api/v1/servers/${data.server_id}/files`, {
+      path,
+      content,
+      overwrite: true
+    });
+
     return { ok: true };
   });
 
 export const getFileDownloadUrl = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ server_id: z.string().uuid(), path: z.string().min(1).max(400) }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    await assertServerAccess(supabase, data.server_id);
-    const key = `${data.server_id}/${normalizePath(data.path)}`;
-    const { data: signed, error } = await supabase.storage.from("server-files").createSignedUrl(key, 300);
-    if (error || !signed) throw new Error(error?.message ?? "Could not create download URL");
-    return { url: signed.signedUrl };
+  .validator((input) => z.object({ server_id: z.string().uuid(), path: z.string().min(1).max(400) }).parse(input))
+  .handler(async ({ data }) => {
+    const file = await runnerRequest<RunnerFileContent>(
+      `/api/v1/servers/${data.server_id}/files/content?path=${encodeURIComponent(normalizePath(data.path))}`,
+    );
+    const encoded = Buffer.from(file.content, "utf8").toString("base64");
+    return { url: `data:${file.mimeType};base64,${encoded}` };
   });
+
+const findFileEntry = async (serverId: string, path: string): Promise<AppFileEntry | undefined> => {
+  const files = await runnerRequest<RunnerFileEntry[]>(`/api/v1/servers/${serverId}/files`);
+  return files.map(toAppFileEntry).find((entry) => entry.path === path);
+};

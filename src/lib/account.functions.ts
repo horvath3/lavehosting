@@ -7,7 +7,7 @@ export const getMe = createServerFn({ method: "GET" })
   .handler(async ({ context }) => {
     const { supabase, userId, claims } = context;
     const [{ data: profile }, { data: roles }] = await Promise.all([
-      supabase.from("profiles").select("id, username, display_name, avatar_url, banned, created_at, preferred_locale").eq("id", userId).maybeSingle(),
+      supabase.from("profiles").select("id, username, display_name, avatar_url, banned, created_at").eq("id", userId).maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
     ]);
     return {
@@ -30,19 +30,6 @@ export const updateProfile = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const { error } = await supabase.from("profiles").update(data).eq("id", userId);
-    if (error) throw new Error(error.message);
-    return { ok: true };
-  });
-
-export const updateLocale = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ locale: z.enum(["hu", "en"]) }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { error } = await supabase
-      .from("profiles")
-      .update({ preferred_locale: data.locale })
-      .eq("id", userId);
     if (error) throw new Error(error.message);
     return { ok: true };
   });

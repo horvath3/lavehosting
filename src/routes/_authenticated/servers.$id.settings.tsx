@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/servers/$id/settings")({
   component: ServerSettings,
@@ -34,10 +33,7 @@ function ServerSettings() {
 
   const save = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("servers").update({
-        name, description: description || null, entry_file: entry || null,
-      }).eq("id", id);
-      if (error) throw new Error(error.message);
+      throw new Error("Server settings update is not supported by the local Runner yet");
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["server", id] }); toast.success("Saved"); },
     onError: (e: Error) => toast.error(e.message),

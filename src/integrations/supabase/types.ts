@@ -14,30 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      app_settings: {
-        Row: {
-          id: boolean
-          provision_max_seconds: number
-          provision_min_seconds: number
-          provision_overload_seconds: number
-          updated_at: string
-        }
-        Insert: {
-          id?: boolean
-          provision_max_seconds?: number
-          provision_min_seconds?: number
-          provision_overload_seconds?: number
-          updated_at?: string
-        }
-        Update: {
-          id?: boolean
-          provision_max_seconds?: number
-          provision_min_seconds?: number
-          provision_overload_seconds?: number
-          updated_at?: string
-        }
-        Relationships: []
-      }
       audit_log: {
         Row: {
           action: string
@@ -72,7 +48,6 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
-          preferred_locale: string
           updated_at: string
           username: string
         }
@@ -82,7 +57,6 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
-          preferred_locale?: string
           updated_at?: string
           username: string
         }
@@ -92,7 +66,6 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
-          preferred_locale?: string
           updated_at?: string
           username?: string
         }
@@ -267,9 +240,6 @@ export type Database = {
           id: string
           name: string
           owner_id: string
-          provisioned: boolean
-          provisioning_duration_s: number
-          provisioning_started_at: string | null
           ram_limit_mb: number
           runtime: Database["public"]["Enums"]["server_runtime"]
           started_at: string | null
@@ -286,9 +256,6 @@ export type Database = {
           id?: string
           name: string
           owner_id: string
-          provisioned?: boolean
-          provisioning_duration_s?: number
-          provisioning_started_at?: string | null
           ram_limit_mb?: number
           runtime: Database["public"]["Enums"]["server_runtime"]
           started_at?: string | null
@@ -305,9 +272,6 @@ export type Database = {
           id?: string
           name?: string
           owner_id?: string
-          provisioned?: boolean
-          provisioning_duration_s?: number
-          provisioning_started_at?: string | null
           ram_limit_mb?: number
           runtime?: Database["public"]["Enums"]["server_runtime"]
           started_at?: string | null
@@ -342,15 +306,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      get_public_stats: {
-        Args: never
-        Returns: {
-          active_servers: number
-          running: number
-          uptime: string
-          users: number
-        }[]
-      }
+      [_ in never]: never
     }
     Enums: {
       app_role: "admin" | "user"

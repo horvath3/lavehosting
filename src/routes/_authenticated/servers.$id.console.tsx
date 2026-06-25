@@ -5,7 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { getServerLogs, sendConsoleCommand } from "@/lib/servers.functions";
-import { supabase } from "@/integrations/supabase/client";
+import { getRunnerSocket } from "@/lib/runner/socket";
+import type { RunnerConsoleEvent } from "@/lib/runner/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -13,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/servers/$id/console")({
   component: ConsolePage,
 });
 
-type LogRow = { id: number; level: "stdout" | "stderr" | "system"; message: string; ts: string };
+type LogRow = { id: string; level: "stdout" | "stderr" | "system"; message: string; ts: string };
 
 function ConsolePage() {
   const { id } = Route.useParams();
@@ -29,13 +30,25 @@ function ConsolePage() {
   useEffect(() => { if (q.data) setLocalLogs(q.data as LogRow[]); }, [q.data]);
 
   useEffect(() => {
-    const ch = supabase
-      .channel(`logs-${id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "server_logs", filter: `server_id=eq.${id}` }, (payload) => {
-        setLocalLogs((l) => [...l, payload.new as LogRow].slice(-500));
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    const socket = getRunnerSocket();
+    const onData = (event: RunnerConsoleEvent) => {
+      if (event.serverId !== id) return;
+      setLocalLogs((logs) => [...logs, toLogRow(event)].slice(-500));
+    };
+    const onHistory = (payload: { serverId: string; history: RunnerConsoleEvent[] }) => {
+      if (payload.serverId !== id) return;
+      setLocalLogs(payload.history.map(toLogRow));
+    };
+
+    socket.emit("console:subscribe", { serverId: id });
+    socket.on("console:data", onData);
+    socket.on("console:history", onHistory);
+
+    return () => {
+      socket.emit("console:unsubscribe", { serverId: id });
+      socket.off("console:data", onData);
+      socket.off("console:history", onHistory);
+    };
   }, [id]);
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [localLogs.length]);
@@ -82,4 +95,13 @@ function ConsolePage() {
       </form>
     </div>
   );
+}
+
+function toLogRow(event: RunnerConsoleEvent): LogRow {
+  return {
+    id: event.id,
+    level: event.stream,
+    message: event.data,
+    ts: event.timestamp
+  };
 }

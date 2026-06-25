@@ -1,42 +1,42 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { randomUUID } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { join } from "node:path";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getRunnerServerConfig } from "@/lib/runner/config.server";
+import { runnerJsonRequest, runnerRequest } from "@/lib/runner/client.server";
+import {
+  getDefaultEntryFile,
+  toAppMetric,
+  toAppServer,
+  toRunnerRuntime,
+  toRunnerServerType
+} from "@/lib/runner/adapters";
+import { sendRunnerConsoleCommand } from "@/lib/runner/socket-command.server";
+import type { AppRuntime, RunnerConsoleEvent, RunnerProcessMetric, RunnerServer } from "@/lib/runner/types";
 
 export const listServers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("servers")
-      .select("id, name, description, runtime, status, started_at, created_at, updated_at, cpu_limit_pct, ram_limit_mb, disk_limit_mb")
-      .eq("owner_id", userId)
-      .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
-    return data ?? [];
+  .handler(async () => {
+    const servers = await runnerRequest<RunnerServer[]>("/api/v1/servers");
+    return servers.map(toAppServer);
   });
 
 export const getServer = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { data: server, error } = await supabase
-      .from("servers")
-      .select("*")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!server) throw new Error("Server not found");
+  .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const [server, metrics] = await Promise.all([
+      runnerRequest<RunnerServer>(`/api/v1/servers/${data.id}`),
+      runnerRequest<RunnerProcessMetric[]>("/api/v1/resources/servers").catch(() => []),
+    ]);
+    const metric = metrics.find((item) => item.serverId === data.id);
 
-    const { data: metric } = await supabase
-      .from("server_metrics")
-      .select("*")
-      .eq("server_id", data.id)
-      .order("recorded_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    return { server, metric };
+    return {
+      server: toAppServer(server),
+      metric: toAppMetric(metric)
+    };
   });
 
 const createServerSchema = z.object({
@@ -47,185 +47,149 @@ const createServerSchema = z.object({
 
 export const createServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => createServerSchema.parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { count } = await supabase.from("servers").select("id", { count: "exact", head: true }).eq("owner_id", userId);
-    if ((count ?? 0) >= 3) throw new Error("Free tier limit: 3 servers per account");
+  .validator((input) => createServerSchema.parse(input))
+  .handler(async ({ data }) => {
+    const servers = await runnerRequest<RunnerServer[]>("/api/v1/servers");
+    if (servers.length >= 3) {
+      throw new Error("Free tier limit: 3 servers per account");
+    }
 
-    // Pull provisioning duration window from app_settings; admin can tune it.
-    const { data: settings } = await supabase
-      .from("app_settings")
-      .select("provision_min_seconds, provision_max_seconds")
-      .eq("id", true)
-      .maybeSingle();
-    const minS = settings?.provision_min_seconds ?? 180;
-    const maxS = settings?.provision_max_seconds ?? 240;
-    const duration = Math.floor(minS + Math.random() * Math.max(1, maxS - minS + 1));
+    const runtime = data.runtime as AppRuntime;
+    const serverFolderName = createSafeFolderName(data.name);
+    const workingDirectory = join(getRunnerServerConfig().serversRoot, serverFolderName);
+    const entryFile = getDefaultEntryFile(runtime);
 
-    const entryFile = data.runtime === "nodejs" ? "index.js" : "main.py";
-    const { data: created, error } = await supabase
-      .from("servers")
-      .insert({
-        owner_id: userId,
-        name: data.name,
-        description: data.description ?? null,
-        runtime: data.runtime,
-        status: "creating",
-        entry_file: entryFile,
-        provisioning_started_at: new Date().toISOString(),
-        provisioning_duration_s: duration,
-        provisioned: false,
-      })
-      .select()
-      .single();
-    if (error) throw new Error(error.message);
+    await createStarterFiles(workingDirectory, runtime, data.name);
 
-    const starter = data.runtime === "nodejs"
-      ? "// Lave Hosting — Node.js Discord bot starter\nconsole.log('Hello from Lave Hosting!');\n"
-      : "# Lave Hosting — Python Discord bot starter\nprint('Hello from Lave Hosting!')\n";
-
-    await supabase.from("server_files").insert({
-      server_id: created.id,
-      path: entryFile,
-      is_dir: false,
-      size_bytes: starter.length,
-      mime: "text/plain",
-      storage_key: `${created.id}/${entryFile}`,
+    const created = await runnerJsonRequest<RunnerServer>("/api/v1/servers", {
+      name: data.name,
+      description: data.description ?? "",
+      runtime: toRunnerRuntime(runtime),
+      type: toRunnerServerType(runtime),
+      workingDirectory,
+      entryFile
     });
 
-    await supabase.storage.from("server-files").upload(`${created.id}/${entryFile}`, new Blob([starter], { type: "text/plain" }), { upsert: true });
-
-    return created;
-  });
-
-/**
- * Called by the client when its provisioning timer completes.
- * Server guard: only flips `provisioned=true` after the configured duration
- * has actually elapsed, so the animation can't be skipped client-side.
- */
-export const completeProvisioning = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { data: srv, error } = await supabase
-      .from("servers")
-      .select("id, provisioning_started_at, provisioning_duration_s, provisioned")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (error || !srv) throw new Error("Server not found");
-    if (srv.provisioned) return { ok: true };
-    if (!srv.provisioning_started_at) return { ok: true };
-    const elapsed = (Date.now() - new Date(srv.provisioning_started_at).getTime()) / 1000;
-    if (elapsed + 2 < (srv.provisioning_duration_s ?? 0)) {
-      throw new Error("Provisioning still in progress");
-    }
-    await supabase
-      .from("servers")
-      .update({ provisioned: true, status: "stopped" })
-      .eq("id", data.id);
-    return { ok: true };
+    return toAppServer(created);
   });
 
 export const deleteServer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    // List + remove storage objects
-    const { data: list } = await supabase.storage.from("server-files").list(data.id, { limit: 1000 });
-    if (list && list.length) {
-      await supabase.storage.from("server-files").remove(list.map((o) => `${data.id}/${o.name}`));
-    }
-    const { error } = await supabase.from("servers").delete().eq("id", data.id);
-    if (error) throw new Error(error.message);
+  .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    await runnerRequest<RunnerServer>(`/api/v1/servers/${data.id}`, { method: "DELETE" });
     return { ok: true };
   });
 
 export const enqueueCommand = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z.object({
       server_id: z.string().uuid(),
       kind: z.enum(["start", "stop", "restart", "exec", "sync_files"]),
       payload: z.record(z.unknown()).optional(),
     }).parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { error } = await supabase.from("server_commands").insert({
-      server_id: data.server_id,
-      kind: data.kind,
-      payload: (data.payload ?? null) as any,
-      created_by: userId,
-    });
-    if (error) throw new Error(error.message);
-
-    // Optimistic status update; runner will overwrite via ack webhook.
+  .handler(async ({ data }) => {
     if (data.kind === "start") {
-      await supabase.from("servers").update({ status: "starting" }).eq("id", data.server_id);
-    } else if (data.kind === "stop") {
-      await supabase.from("servers").update({ status: "stopping" }).eq("id", data.server_id);
-    } else if (data.kind === "restart") {
-      await supabase.from("servers").update({ status: "starting" }).eq("id", data.server_id);
+      await runnerJsonRequest<RunnerServer>(`/api/v1/servers/${data.server_id}/start`, {});
+      return { ok: true };
     }
 
-    // Demo: synthesize a log line so the console shows activity even without a runner.
-    await supabase.from("server_logs").insert({
-      server_id: data.server_id,
-      level: "system",
-      message: `[system] queued ${data.kind} command`,
-    });
+    if (data.kind === "stop") {
+      await runnerJsonRequest<RunnerServer>(`/api/v1/servers/${data.server_id}/stop`, {});
+      return { ok: true };
+    }
+
+    if (data.kind === "restart") {
+      await runnerJsonRequest<RunnerServer>(`/api/v1/servers/${data.server_id}/restart`, {});
+      return { ok: true };
+    }
+
+    if (data.kind === "exec") {
+      const command = typeof data.payload?.command === "string" ? data.payload.command : "";
+      if (!command) {
+        throw new Error("Command is required");
+      }
+      await sendRunnerConsoleCommand(data.server_id, command);
+      return { ok: true };
+    }
 
     return { ok: true };
   });
 
 export const getServerMetrics = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { data: rows } = await supabase
-      .from("server_metrics")
-      .select("cpu_pct, ram_mb, disk_mb, uptime_s, recorded_at")
-      .eq("server_id", data.id)
-      .order("recorded_at", { ascending: false })
-      .limit(60);
-    return rows ?? [];
+  .validator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const metrics = await runnerRequest<RunnerProcessMetric[]>("/api/v1/resources/servers");
+    const metric = metrics.find((item) => item.serverId === data.id);
+    const appMetric = toAppMetric(metric);
+    return appMetric ? [appMetric] : [];
   });
 
 export const getServerLogs = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) => z.object({ id: z.string().uuid(), limit: z.number().int().min(1).max(500).optional() }).parse(input))
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
-    const { data: rows } = await supabase
-      .from("server_logs")
-      .select("id, level, message, ts")
-      .eq("server_id", data.id)
-      .order("ts", { ascending: false })
-      .limit(data.limit ?? 200);
-    return (rows ?? []).reverse();
+  .validator((input) => z.object({ id: z.string().uuid(), limit: z.number().int().min(1).max(500).optional() }).parse(input))
+  .handler(async ({ data }) => {
+    const history = await runnerRequest<RunnerConsoleEvent[]>(`/api/v1/servers/${data.id}/console/history`);
+    return history.slice(-(data.limit ?? 200)).map((event) => ({
+      id: event.id,
+      level: event.stream,
+      message: event.data,
+      ts: event.timestamp
+    }));
   });
 
 export const sendConsoleCommand = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input) =>
+  .validator((input) =>
     z.object({ server_id: z.string().uuid(), command: z.string().min(1).max(500) }).parse(input),
   )
-  .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    await supabase.from("server_commands").insert({
-      server_id: data.server_id,
-      kind: "exec",
-      payload: { command: data.command },
-      created_by: userId,
-    });
-    await supabase.from("server_logs").insert({
-      server_id: data.server_id,
-      level: "system",
-      message: `> ${data.command}`,
-    });
+  .handler(async ({ data }) => {
+    await sendRunnerConsoleCommand(data.server_id, data.command);
     return { ok: true };
   });
+
+const createSafeFolderName = (name: string): string => {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48);
+
+  return `${slug || "server"}-${randomUUID()}`;
+};
+
+const createStarterFiles = async (workingDirectory: string, runtime: AppRuntime, name: string): Promise<void> => {
+  await mkdir(workingDirectory, { recursive: true });
+
+  if (runtime === "nodejs") {
+    await Promise.all([
+      writeFile(
+        join(workingDirectory, "package.json"),
+        JSON.stringify({ name: createPackageName(name), version: "1.0.0", type: "module", scripts: { start: "node index.js" } }, null, 2),
+        "utf8",
+      ),
+      writeFile(join(workingDirectory, "index.js"), "console.log('Lave Runner Node.js server started');\nsetInterval(() => {}, 1000);\n", "utf8"),
+      writeFile(join(workingDirectory, ".env"), "", "utf8"),
+    ]);
+    return;
+  }
+
+  await Promise.all([
+    writeFile(join(workingDirectory, "requirements.txt"), "", "utf8"),
+    writeFile(join(workingDirectory, "main.py"), "import time\nprint('Lave Runner Python server started')\nwhile True:\n    time.sleep(1)\n", "utf8"),
+    writeFile(join(workingDirectory, ".env"), "", "utf8"),
+  ]);
+};
+
+const createPackageName = (name: string): string => {
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 64) || "lave-server";
+};
