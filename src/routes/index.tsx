@@ -7,6 +7,7 @@ import { MarketingHeader } from "@/components/marketing/MarketingHeader";
 import { MarketingFooter } from "@/components/marketing/MarketingFooter";
 import { useSuspenseQuery, queryOptions } from "@tanstack/react-query";
 import { getPublicStats } from "@/lib/public-stats.functions";
+import { useT } from "@/i18n/I18nProvider";
 
 const statsQO = queryOptions({
   queryKey: ["public-stats"],
@@ -17,10 +18,10 @@ const statsQO = queryOptions({
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Lave Hosting — Free Discord Bot Hosting" },
-      { name: "description", content: "Create and manage Discord bot servers in seconds. Free, fast, secure Discord bot hosting." },
+      { title: "Lave Hosting — Ingyenes Discord Bot Hosting" },
+      { name: "description", content: "Hozz létre és kezelj Discord bot szervereket másodpercek alatt. Ingyenes, gyors, biztonságos Discord bot hosting." },
       { property: "og:title", content: "Lave Hosting" },
-      { property: "og:description", content: "Free Discord Bot Hosting — create and manage in seconds." },
+      { property: "og:description", content: "Ingyenes Discord Bot Hosting — hozz létre és kezelj másodpercek alatt." },
     ],
   }),
   loader: ({ context }) => context.queryClient.ensureQueryData(statsQO),
@@ -43,6 +44,7 @@ function Landing() {
 }
 
 function Hero() {
+  const t = useT();
   return (
     <section className="mx-auto max-w-7xl px-4 pt-20 pb-16 sm:px-6 sm:pt-28">
       <motion.div
@@ -53,24 +55,24 @@ function Hero() {
       >
         <div className="mx-auto inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-xs font-medium text-muted-foreground">
           <Sparkles className="h-3.5 w-3.5 text-[oklch(0.78_0.13_210)]" />
-          Now in public beta — Free forever tier
+          {t("marketing.tagline")}
         </div>
         <h1 className="mt-6 font-display text-5xl font-bold tracking-tight sm:text-7xl">
           <span className="gradient-text">Lave Hosting</span>
         </h1>
-        <p className="mt-4 text-2xl font-semibold sm:text-3xl">Free Discord Bot Hosting</p>
+        <p className="mt-4 text-2xl font-semibold sm:text-3xl">{t("marketing.hero.subtitle")}</p>
         <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
-          Create and manage Discord bot servers in seconds. Upload your code, hit start, and watch the console light up in real time.
+          {t("marketing.hero.body")}
         </p>
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link to="/auth" search={{ mode: "signup" } as never}>
             <Button size="lg" className="bg-gradient-to-r from-[oklch(0.66_0.22_296)] to-[oklch(0.62_0.20_258)] text-white shadow-[0_10px_40px_-10px_oklch(0.66_0.22_296_/_0.6)] hover:opacity-90">
-              Create Server <ArrowRight className="ml-2 h-4 w-4" />
+              {t("marketing.cta.create")} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
           <Link to="/auth">
             <Button size="lg" variant="outline" className="border-white/15 bg-white/5 backdrop-blur-md hover:bg-white/10">
-              Dashboard
+              {t("marketing.cta.dashboard")}
             </Button>
           </Link>
         </div>
@@ -105,12 +107,13 @@ function Hero() {
 }
 
 function Stats() {
+  const t = useT();
   const { data } = useSuspenseQuery(statsQO);
   const items = [
-    { label: "Active Servers", value: data.activeServers, icon: Cpu },
-    { label: "Registered Users", value: data.users, icon: Globe2 },
-    { label: "Running Servers", value: data.running, icon: Bot },
-    { label: "Uptime", value: data.uptime, icon: ShieldCheck, format: false },
+    { label: t("marketing.stats.activeServers"), value: data.activeServers, icon: Cpu },
+    { label: t("marketing.stats.users"), value: data.users, icon: Globe2 },
+    { label: t("marketing.stats.running"), value: data.running, icon: Bot },
+    { label: t("marketing.stats.uptime"), value: data.uptime, icon: ShieldCheck, format: false },
   ] as const;
   return (
     <section className="mx-auto max-w-7xl px-4 pb-20 sm:px-6">
@@ -138,6 +141,7 @@ function Stats() {
 }
 
 function Features() {
+  const t = useT();
   const features = [
     { icon: Zap, title: "Instant deploys", desc: "Push code, hit start, your bot is online in under 5 seconds." },
     { icon: Terminal, title: "Real-time console", desc: "Colored logs streamed over WebSockets. Send commands live." },
@@ -149,8 +153,8 @@ function Features() {
   return (
     <section id="features" className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className="font-display text-3xl font-bold sm:text-4xl">Everything your bot needs</h2>
-        <p className="mt-3 text-muted-foreground">Production-grade primitives, packaged in a control panel that feels great.</p>
+        <h2 className="font-display text-3xl font-bold sm:text-4xl">{t("marketing.features.title")}</h2>
+        <p className="mt-3 text-muted-foreground">{t("marketing.features.subtitle")}</p>
       </div>
       <div className="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {features.map((f, i) => (
@@ -175,17 +179,18 @@ function Features() {
 }
 
 function ServicesPreview() {
+  const t = useT();
   const services = [
-    { emoji: "🖥️", name: "Discord Bot Hosting", status: "Available now", active: true },
-    { emoji: "🎮", name: "Minecraft Hosting", status: "Coming soon", active: false },
-    { emoji: "🦖", name: "ARK Hosting", status: "Coming soon", active: false },
-    { emoji: "🚜", name: "Farming Simulator Hosting", status: "Coming soon", active: false },
+    { emoji: "🖥️", name: "Discord Bot Hosting", active: true },
+    { emoji: "🎮", name: "Minecraft Hosting", active: false },
+    { emoji: "🦖", name: "ARK Hosting", active: false },
+    { emoji: "🚜", name: "Farming Simulator Hosting", active: false },
   ];
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6">
       <div className="mx-auto max-w-2xl text-center">
-        <h2 className="font-display text-3xl font-bold sm:text-4xl">Hosting that grows with you</h2>
-        <p className="mt-3 text-muted-foreground">Start with Discord bots. More game servers landing soon.</p>
+        <h2 className="font-display text-3xl font-bold sm:text-4xl">{t("marketing.services.title")}</h2>
+        <p className="mt-3 text-muted-foreground">{t("marketing.services.subtitle")}</p>
       </div>
       <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {services.map((s, i) => (
@@ -202,7 +207,7 @@ function ServicesPreview() {
             <h3 className="mt-4 font-display text-base font-semibold">{s.name}</h3>
             <div className={`mt-2 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs ${s.active ? "bg-[oklch(0.72_0.18_155/0.15)] text-[oklch(0.85_0.18_155)]" : "bg-white/5 text-muted-foreground"}`}>
               <span className={`h-1.5 w-1.5 rounded-full ${s.active ? "bg-[oklch(0.72_0.18_155)]" : "bg-muted-foreground"}`} />
-              {s.status}
+              {s.active ? t("marketing.services.available") : t("marketing.services.coming")}
             </div>
           </motion.div>
         ))}
@@ -212,20 +217,21 @@ function ServicesPreview() {
 }
 
 function CTA() {
+  const t = useT();
   return (
     <section className="mx-auto max-w-7xl px-4 py-20 sm:px-6">
       <div className="glass-strong relative overflow-hidden rounded-3xl p-10 text-center md:p-16">
         <div className="absolute inset-0 -z-10 opacity-50" style={{ background: "var(--gradient-radial)" }} />
         <h2 className="font-display text-3xl font-bold sm:text-5xl">
-          Ship your bot in <span className="gradient-text">60 seconds</span>
+          {t("marketing.cta.bottom.title")} <span className="gradient-text">{t("marketing.cta.bottom.title2")}</span>
         </h2>
         <p className="mx-auto mt-4 max-w-xl text-muted-foreground">
-          Create an account, spin up a server, paste your code. We handle the rest.
+          {t("marketing.cta.bottom.body")}
         </p>
         <div className="mt-7 flex justify-center">
           <Link to="/auth" search={{ mode: "signup" } as never}>
             <Button size="lg" className="bg-gradient-to-r from-[oklch(0.66_0.22_296)] to-[oklch(0.62_0.20_258)] text-white shadow-[0_10px_40px_-10px_oklch(0.66_0.22_296_/_0.6)] hover:opacity-90">
-              Get started free <ArrowRight className="ml-2 h-4 w-4" />
+              {t("marketing.cta.bottom.button")} <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
         </div>
