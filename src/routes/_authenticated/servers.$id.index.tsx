@@ -7,12 +7,15 @@ import { toast } from "sonner";
 import { getServer, enqueueCommand } from "@/lib/servers.functions";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { ProvisioningOverlay } from "@/components/ProvisioningOverlay";
+import { useT } from "@/i18n/I18nProvider";
 
 export const Route = createFileRoute("/_authenticated/servers/$id/")({
   component: ServerOverview,
 });
 
 function ServerOverview() {
+  const t = useT();
   const { id } = Route.useParams();
   const qc = useQueryClient();
   const getFn = useServerFn(getServer);
@@ -36,6 +39,17 @@ function ServerOverview() {
 
   const m = q.data?.metric;
   const s = q.data?.server;
+
+  if (s && !s.provisioned && s.provisioning_started_at && s.provisioning_duration_s) {
+    return (
+      <ProvisioningOverlay
+        serverId={id}
+        startedAt={s.provisioning_started_at}
+        durationS={s.provisioning_duration_s}
+      />
+    );
+  }
+
   const cpu = m?.cpu_pct ?? 0;
   const ram = m?.ram_mb ?? 0;
   const disk = m?.disk_mb ?? 0;
@@ -46,7 +60,7 @@ function ServerOverview() {
       <div className="glass-strong rounded-2xl p-5">
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={() => cmd.mutate("start")} disabled={cmd.isPending || s?.status === "running"} className="bg-[oklch(0.72_0.18_155)] text-white hover:opacity-90">
-            {cmd.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}Start
+            {cmd.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Play className="mr-2 h-4 w-4" />}{t("status.starting") === "Indítás" ? "Indítás" : "Start"}
           </Button>
           <Button onClick={() => cmd.mutate("stop")} disabled={cmd.isPending || s?.status === "stopped"} variant="outline" className="border-white/15 bg-white/5 hover:bg-white/10">
             <Square className="mr-2 h-4 w-4" />Stop

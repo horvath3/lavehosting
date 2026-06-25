@@ -50,16 +50,18 @@ export const createServer = createServerFn({ method: "POST" })
   .inputValidator((input) => createServerSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: existing } = await supabase
-      .from("servers")
-      .select("id", { count: "exact", head: true })
-      .eq("owner_id", userId);
-    // Free tier: 3 servers per user
-    if ((existing as unknown as { count?: number })?.count !== undefined) {
-      // count via head returns no rows; use a count query instead:
-    }
     const { count } = await supabase.from("servers").select("id", { count: "exact", head: true }).eq("owner_id", userId);
     if ((count ?? 0) >= 3) throw new Error("Free tier limit: 3 servers per account");
+
+    // Pull provisioning duration window from app_settings; admin can tune it.
+    const { data: settings } = await supabase
+      .from("app_settings")
+      .select("provision_min_seconds, provision_max_seconds")
+      .eq("id", true)
+      .maybeSingle();
+    const minS = settings?.provision_min_seconds ?? 180;
+    const maxS = settings?.provision_max_seconds ?? 240;
+    const duration = Math.floor(minS + Math.random() * Math.max(1, maxS - minS + 1));
 
     const entryFile = data.runtime === "nodejs" ? "index.js" : "main.py";
     const { data: created, error } = await supabase
@@ -69,14 +71,16 @@ export const createServer = createServerFn({ method: "POST" })
         name: data.name,
         description: data.description ?? null,
         runtime: data.runtime,
-        status: "stopped",
+        status: "creating",
         entry_file: entryFile,
+        provisioning_started_at: new Date().toISOString(),
+        provisioning_duration_s: duration,
+        provisioned: false,
       })
       .select()
       .single();
     if (error) throw new Error(error.message);
 
-    // Create starter file in DB metadata; binary stays empty until uploaded/edited.
     const starter = data.runtime === "nodejs"
       ? "// Lave Hosting — Node.js Discord bot starter\nconsole.log('Hello from Lave Hosting!');\n"
       : "# Lave Hosting — Python Discord bot starter\nprint('Hello from Lave Hosting!')\n";
@@ -90,10 +94,38 @@ export const createServer = createServerFn({ method: "POST" })
       storage_key: `${created.id}/${entryFile}`,
     });
 
-    // Upload starter content via Storage with the user's bearer (RLS-scoped)
     await supabase.storage.from("server-files").upload(`${created.id}/${entryFile}`, new Blob([starter], { type: "text/plain" }), { upsert: true });
 
     return created;
+  });
+
+/**
+ * Called by the client when its provisioning timer completes.
+ * Server guard: only flips `provisioned=true` after the configured duration
+ * has actually elapsed, so the animation can't be skipped client-side.
+ */
+export const completeProvisioning = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    const { data: srv, error } = await supabase
+      .from("servers")
+      .select("id, provisioning_started_at, provisioning_duration_s, provisioned")
+      .eq("id", data.id)
+      .maybeSingle();
+    if (error || !srv) throw new Error("Server not found");
+    if (srv.provisioned) return { ok: true };
+    if (!srv.provisioning_started_at) return { ok: true };
+    const elapsed = (Date.now() - new Date(srv.provisioning_started_at).getTime()) / 1000;
+    if (elapsed + 2 < (srv.provisioning_duration_s ?? 0)) {
+      throw new Error("Provisioning still in progress");
+    }
+    await supabase
+      .from("servers")
+      .update({ provisioned: true, status: "stopped" })
+      .eq("id", data.id);
+    return { ok: true };
   });
 
 export const deleteServer = createServerFn({ method: "POST" })
